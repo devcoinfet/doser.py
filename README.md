@@ -8,6 +8,11 @@ DoS tool for HTTP requests (inspired by hulk but has more functionalities) writt
 ```bash
 python doser.py -t 999 -g 'https://targeted.site.com'
 ```
+Perform Wordpress Dos:
+
+```bash
+python doser.py -t 999 -g 'https://targeted.site.com' -wpd true
+```
 
 999 threads sends POST requests with json data:
 
