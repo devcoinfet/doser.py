@@ -22,7 +22,7 @@ python doser.py -t 999 -p 'https://targeted.site.com' -ah 'Content-Type: applica
 ```
 
 # Usage
-usage: doser.py [-h] [-g G] [-p P] [-d D] [-ah AH] [-t T]
+usage: doser.py [-h] [-g G] [-p P] [-d D] [-ah AH] [-t T] [-wpd WPD]
 
 optional arguments:
 
