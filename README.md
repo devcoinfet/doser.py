@@ -1,3 +1,4 @@
+
 # doser.py
 DoS tool for HTTP requests (inspired by hulk but has more functionalities) written in Python:
 ![](https://raw.githubusercontent.com/Quitten/doser.py/master/doser.jpg)
@@ -34,5 +35,5 @@ optional arguments:
   -d        Specify data payload for POST request
   
   -ah      Specify addtional header
-  
+  -wpd      Specify Tru and this param to test wordpress dos
   -t        Specify number of threads to be used
