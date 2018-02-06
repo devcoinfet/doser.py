@@ -36,6 +36,6 @@ optional arguments:
   
   -ah      Specify addtional header
   
-  -wpd      Specify Tru and this param to test wordpress dos
+  -wpd      Specify True and this param to test wordpress dos
   
   -t        Specify number of threads to be used
